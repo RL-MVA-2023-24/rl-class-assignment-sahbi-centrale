@@ -1,6 +1,3 @@
-pip install tqdm 
-
-
 from gymnasium.wrappers import TimeLimit
 from env_hiv import HIVPatient
 import torch
@@ -277,7 +274,7 @@ DQN = torch.nn.Sequential(nn.Linear(state_dim, 10*nb_neurons),
 # DQN config
 config = {'nb_actions': env.action_space.n,
         'learning_rate': 0.01,
-        'gamma': 0.7,
+        'gamma': 0.9,
         'buffer_size': 200000,
         'epsilon_min': 0.01,
         'epsilon_max': 1,
@@ -315,7 +312,7 @@ if __name__ == "__main__":
     # DQN config
     config = {'nb_actions': env.action_space.n,
             'learning_rate': 0.01,
-            'gamma': 0.7,
+            'gamma': 0.8,
             'buffer_size': 500000,
             'epsilon_min': 0.01,
             'epsilon_max': 1,
