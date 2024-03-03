@@ -153,90 +153,79 @@ class dqn_agent:
             loss.backward()
             self.optimizer.step() 
     
-
-def train(self, env, max_episode):
-    max_return = 0
-    episode_return = []
-    MC_avg_total_reward = []   
-    MC_avg_discounted_reward = []   
-    V_init_state = []  
-    episode = 0
-    episode_cum_reward = 0
-    state, _ = env.reset()
-    epsilon = self.epsilon_max
-    step = 0
-    while episode < max_episode:
-        # update epsilon
-        if step > self.epsilon_delay:
-            epsilon = max(self.epsilon_min, epsilon-self.epsilon_step)
-        # select epsilon-greedy action
-        if np.random.rand() < epsilon:
-            action = env.action_space.sample()
-        else:
-            action = greedy_action(self.model, state)
-        # step
-        next_state, reward, done, trunc, _ = env.step(action)
-        self.memory.append(state, action, reward, next_state, done)
-        episode_cum_reward += reward
-        # train
-        for _ in range(self.nb_gradient_steps): 
-            self.gradient_step()
-        # update target network if needed
-        if self.update_target_strategy == 'replace':
-            if step % self.update_target_freq == 0: 
-                self.target_model.load_state_dict(self.model.state_dict())
-        if self.update_target_strategy == 'ema':
-            target_state_dict = self.target_model.state_dict()
-            model_state_dict = self.model.state_dict()
-            tau = self.update_target_tau
-            for key in model_state_dict:
-                target_state_dict[key] = tau*model_state_dict[key] + (1-tau)*target_state_dict[key]
-            self.target_model.load_state_dict(target_state_dict)
-        # next transition
-        step += 1
-        if done or trunc:
-            episode += 1
-            # Monitoring
-            if self.monitoring_nb_trials>0:
-                MC_dr, MC_tr = self.MC_eval(env, self.monitoring_nb_trials)   
-                V0 = self.V_initial_state(env, self.monitoring_nb_trials)   
-                MC_avg_total_reward.append(MC_tr) 
-                MC_avg_discounted_reward.append(MC_dr)
-                V_init_state.append(V0) 
-                episode_return.append(episode_cum_reward)   
-                print("Episode ", '{:2d}'.format(episode), 
-                      ", epsilon ", '{:6.2f}'.format(epsilon), 
-                      ", batch size ", '{:4d}'.format(len(self.memory)), 
-                      ", ep return ", '{:4.1f}'.format(episode_cum_reward), 
-                      ", MC tot ", '{:6.2f}'.format(MC_tr),
-                      ", MC disc ", '{:6.2f}'.format(MC_dr),
-                      ", V0 ", '{:6.2f}'.format(V0),
-                      sep='')
+    def train(self, env, max_episode):
+        max_return = 0
+        episode_return = []
+        MC_avg_total_reward = []   
+        MC_avg_discounted_reward = []   
+        V_init_state = []  
+        episode = 0
+        episode_cum_reward = 0
+        state, _ = env.reset()
+        epsilon = self.epsilon_max
+        step = 0
+        while episode < max_episode:
+            # update epsilon
+            if step > self.epsilon_delay:
+                epsilon = max(self.epsilon_min, epsilon-self.epsilon_step)
+            # select epsilon-greedy action
+            if np.random.rand() < epsilon:
+                action = env.action_space.sample()
             else:
-                episode_return.append(episode_cum_reward)
-                print("Episode ", '{:2d}'.format(episode), 
-                      ", epsilon ", '{:6.2f}'.format(epsilon), 
-                      ", batch size ", '{:4d}'.format(len(self.memory)), 
-                      ", ep return ", '{:e}'.format(episode_cum_reward), 
-                      sep='')  
-                
-                # Ensure the directory exists before saving the model
-                model_directory = './src/models'
-                if not os.path.exists(model_directory):
-                    os.makedirs(model_directory)  # Creates the directory if it does not exist
-                
-                # Save the model every 100 episodes
-                if episode % 100 == 0:
-                    model_path = f'{model_directory}/model_ep_{episode}_v2.pt'
-                    torch.save(self.model.state_dict(), model_path)
-                    print(f'Model saved to {model_path}')
-            
-            state, _ = env.reset()
-            episode_cum_reward = 0
-        else:
-            state = next_state
-    return episode_return, MC_avg_discounted_reward, MC_avg_total_reward, V_init_state
-    
+                action = greedy_action(self.model, state)
+            # step
+            next_state, reward, done, trunc, _ = env.step(action)
+            self.memory.append(state, action, reward, next_state, done)
+            episode_cum_reward += reward
+            # train
+            for _ in range(self.nb_gradient_steps): 
+                self.gradient_step()
+            # update target network if needed
+            if self.update_target_strategy == 'replace':
+                if step % self.update_target_freq == 0: 
+                    self.target_model.load_state_dict(self.model.state_dict())
+            if self.update_target_strategy == 'ema':
+                target_state_dict = self.target_model.state_dict()
+                model_state_dict = self.model.state_dict()
+                tau = self.update_target_tau
+                for key in model_state_dict:
+                    target_state_dict[key] = tau*model_state_dict[key] + (1-tau)*target_state_dict[key]
+                self.target_model.load_state_dict(target_state_dict)
+            # next transition
+            step += 1
+            if done or trunc:
+                episode += 1
+                # Monitoring
+                if self.monitoring_nb_trials>0:
+                    MC_dr, MC_tr = self.MC_eval(env, self.monitoring_nb_trials)   
+                    V0 = self.V_initial_state(env, self.monitoring_nb_trials)   
+                    MC_avg_total_reward.append(MC_tr) 
+                    MC_avg_discounted_reward.append(MC_dr)
+                    V_init_state.append(V0) 
+                    episode_return.append(episode_cum_reward)   
+                    print("Episode ", '{:2d}'.format(episode), 
+                          ", epsilon ", '{:6.2f}'.format(epsilon), 
+                          ", batch size ", '{:4d}'.format(len(self.memory)), 
+                          ", ep return ", '{:4.1f}'.format(episode_cum_reward), 
+                          ", MC tot ", '{:6.2f}'.format(MC_tr),
+                          ", MC disc ", '{:6.2f}'.format(MC_dr),
+                          ", V0 ", '{:6.2f}'.format(V0),
+                          sep='')
+                else:
+                    episode_return.append(episode_cum_reward)
+                    print("Episode ", '{:2d}'.format(episode), 
+                          ", epsilon ", '{:6.2f}'.format(epsilon), 
+                          ", batch size ", '{:4d}'.format(len(self.memory)), 
+                          ", ep return ", '{:e}'.format(episode_cum_reward), 
+                          sep='')  
+                    
+                    if episode % 100 == 0:
+                        torch.save(self.model.state_dict(), './src/models/model_ep_{}_v2.pt'.format(episode))
+                state, _ = env.reset()
+                episode_cum_reward = 0
+            else:
+                state = next_state
+        return episode_return, MC_avg_discounted_reward, MC_avg_total_reward, V_init_state
     
     def random_fill(self, samples, env) :
         state, _ = env.reset()
@@ -291,7 +280,7 @@ if __name__ == "__main__":
                             nn.Linear(nb_neurons, n_action)).to(device)
     # DQN config
     config = {'nb_actions': env.action_space.n,
-            'learning_rate': 0.01,
+            'learning_rate': 0.001,
             'gamma': 0.95,
             'buffer_size': 500000,
             'epsilon_min': 0.01,
@@ -305,20 +294,6 @@ if __name__ == "__main__":
             'update_target_tau': 0.0005,
             'criterion': torch.nn.SmoothL1Loss(),
             'monitoring_nb_trials': 0}
-
-
-
-    folder_path = './src/agents'
-
-    # Check if the folder already exists
-    if not os.path.exists(folder_path):
-        # Create the folder
-        os.makedirs(folder_path)
-        print(f"Folder '{folder_path}' created successfully.")
-    else:
-        print(f"Folder '{folder_path}' already exists.")
-
-    
     # Declare agent
     agent = dqn_agent(config, DQN)
     load = False
