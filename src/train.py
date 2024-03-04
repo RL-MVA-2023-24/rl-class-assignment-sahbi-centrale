@@ -26,58 +26,70 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
         
-class ReplayBuffer:
+class replaybuffer:
     def __init__(self, capacity, device):
-        self.capacity = capacity # capacity of the buffer
-        self.data = []
-        self.index = 0 # index of the next cell to be filled
-        self.device = device
+        # Initialize the replay buffer with given capacity and device
+        self.capacity = capacity  # Capacity of the buffer
+        self.data = []  # Data stored in the buffer
+        self.index = 0  # Index to keep track of the current position in the buffer
+        self.device = device  # Device on which the tensor data will be stored
+        
     def append(self, s, a, r, s_, d):
+        # Append a new experience tuple (s, a, r, s_, d) to the buffer
         if len(self.data) < self.capacity:
-            self.data.append(None)
-        self.data[self.index] = (s, a, r, s_, d)
-        self.index = (self.index + 1) % self.capacity
+            self.data.append(None)  # Initialize the list with None placeholders if not at full capacity
+        self.data[self.index] = (s, a, r, s_, d)  # Store the experience tuple at the current index
+        self.index = (self.index + 1) % self.capacity  # Update the index circularly
+        
     def sample(self, batch_size):
-        batch = random.sample(self.data, batch_size)
-        return list(map(lambda x:torch.Tensor(np.array(x)).to(self.device), list(zip(*batch))))
+        # Sample a batch of experiences from the buffer
+        batch = random.sample(self.data, batch_size)  # Randomly sample experiences without replacement
+        # Convert the sampled batch to PyTorch tensors and move them to the specified device
+        return list(map(lambda x: torch.Tensor(np.array(x)).to(self.device), list(zip(*batch))))
+    
     def __len__(self):
+        # Return the current size of the buffer
         return len(self.data)
+
+    
     
 def greedy_action(network, state):
+    # Determine the device based on whether the network's parameters are on CUDA or CPU
     device = "cuda" if next(network.parameters()).is_cuda else "cpu"
+    # Disable gradient calculation for inference
     with torch.no_grad():
+        # Pass the state through the network and get Q-values
         Q = network(torch.Tensor(state).unsqueeze(0).to(device))
+        # Choose the action with the highest Q-value
         return torch.argmax(Q).item()
-    
-
 
 class ProjectAgent:
     def act(self, observation, use_random=False):
-         
-        return self.agent.act(observation)
+        # This method returns the greedy action using the provided network and observation
+        # Note: The 'use_random' argument is not utilized in this implementation
+        return greedy_action(self.agent.model, observation)
 
     def save(self, path):
-        pass
-        
+        # This method saves the agent's model weights to the specified path
+        pass  # No action needed since the model is loaded externally
+
     def load(self):
-        self.agent = dqn_agent(config, DQN)
-        path = os.getcwd() + "/src/model_ep_2000.pt"
-        self.agent.model.load_state_dict(torch.load(path, 
-                                                    map_location= torch.device('cpu')))
+        # This method loads the agent's model weights from a pre-saved location
+        self.agent = dqn_agent(config, DQN)  # Initialize the DQN agent
+        # Load the pre-trained model weights
+        path = os.getcwd() + "/src/models/model_ep_500.pt"  
+        self.agent.model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
 
 
 
-
-
-
-class dqn_agent:
+class DQN_agent:
     def __init__(self, config, model):
         device = "cuda" if next(model.parameters()).is_cuda else "cpu"
         self.nb_actions = config['nb_actions']
         self.gamma = config['gamma'] if 'gamma' in config.keys() else 0.95
         self.batch_size = config['batch_size'] if 'batch_size' in config.keys() else 100
         buffer_size = config['buffer_size'] if 'buffer_size' in config.keys() else int(1e5)
-        self.memory = ReplayBuffer(buffer_size,device)
+        self.memory = replaybuffer(buffer_size,device)
         self.epsilon_max = config['epsilon_max'] if 'epsilon_max' in config.keys() else 1.
         self.epsilon_min = config['epsilon_min'] if 'epsilon_min' in config.keys() else 0.01
         self.epsilon_stop = config['epsilon_decay_period'] if 'epsilon_decay_period' in config.keys() else 1000
@@ -116,7 +128,7 @@ class dqn_agent:
             MC_discounted_reward.append(discounted_reward)
         return np.mean(MC_discounted_reward), np.mean(MC_total_reward)
     
-    def V_initial_state(self, env, nb_trials):   # NEW NEW NEW
+    def V_initial_state(self, env, nb_trials):   #
         with torch.no_grad():
             for _ in tqdm(range(nb_trials), "trials of V") :
                 val = []
@@ -202,7 +214,7 @@ class dqn_agent:
                           sep='')  
                     
                     if episode % 50 == 0:
-                        torch.save(self.model.state_dict(), './src/models/model_ep_{}_v2.pt'.format(episode))
+                        torch.save(self.model.state_dict(), './src/models/model_ep_{}.pt'.format(episode))
                 state, _ = env.reset()
                 episode_cum_reward = 0
             else:
@@ -252,8 +264,6 @@ class dqn_agent:
 
 
 
-
-
 # Declare network
 state_dim = env.observation_space.shape[0]
 n_action = env.action_space.n 
@@ -261,20 +271,18 @@ nb_neurons= 100
 DQN = torch.nn.Sequential(nn.Linear(state_dim, 10*nb_neurons),
                             nn.SELU(),
                             nn.Linear(10*nb_neurons, 5*nb_neurons),
-                            nn.SELU(), 
-                            nn.Linear(5*nb_neurons, 3*nb_neurons), 
                             nn.SELU(),
-                            nn.Linear(3*nb_neurons, nb_neurons),
-                            nn.SELU(),
-                            nn.Linear(nb_neurons, n_action)).to(device)
+                            nn.Linear(5*nb_neurons, n_action)).to(device)
+
+
 
 
 
 
 # DQN config
 config = {'nb_actions': env.action_space.n,
-        'learning_rate': 0.01,
-        'gamma': 0.9,
+        'learning_rate': 0.001,
+        'gamma': 0.95,
         'buffer_size': 200000,
         'epsilon_min': 0.01,
         'epsilon_max': 1,
@@ -301,18 +309,14 @@ if __name__ == "__main__":
     DQN = torch.nn.Sequential(nn.Linear(state_dim, 10*nb_neurons),
                             nn.SELU(),
                             nn.Linear(10*nb_neurons, 5*nb_neurons),
-                            nn.SELU(), 
-                            nn.Linear(5*nb_neurons, 3*nb_neurons), 
                             nn.SELU(),
-                            nn.Linear(3*nb_neurons, nb_neurons),
-                            nn.SELU(),
-                            nn.Linear(nb_neurons, n_action)).to(device)
+                            nn.Linear(5*nb_neurons, n_action)).to(device)
 
     
     # DQN config
     config = {'nb_actions': env.action_space.n,
-            'learning_rate': 0.01,
-            'gamma': 0.8,
+            'learning_rate': 0.001,
+            'gamma': 0.95,
             'buffer_size': 500000,
             'epsilon_min': 0.01,
             'epsilon_max': 1,
@@ -329,16 +333,16 @@ if __name__ == "__main__":
 
     
     # Declare agent
-    agent = dqn_agent(config, DQN)
+    agent = DQN_agent(config, DQN)
     load = False
     if load:
         # load agent using pickle
-        with open('./agents/agent.pkl', 'rb') as f:
+        with open('./src/agents/agent.pkl', 'rb') as f:
             agent = pickle.load(f)
    
     # Train agent
-    max_episode_steps=2000
+    max_episode_steps= 500
     ep_length, disc_rewards, tot_rewards, V0 = agent.train(env, max_episode_steps)
     with open('./src/agents/agent.pkl', 'wb') as f:
-       pickle.dump(agent, f)
+      pickle.dump(agent, f)
      
