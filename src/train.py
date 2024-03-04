@@ -75,9 +75,9 @@ class ProjectAgent:
 
     def load(self):
         # This method loads the agent's model weights from a pre-saved location
-        self.agent = dqn_agent(config, DQN)  # Initialize the DQN agent
+        self.agent = DQN_agent(config, DQN)  # Initialize the DQN agent
         # Load the pre-trained model weights
-        path = os.getcwd() + "/src/models/model_ep_500.pt"  
+        path = os.getcwd() + "/src/src/models/model_ep_500.pt"  
         self.agent.model.load_state_dict(torch.load(path, map_location=torch.device('cpu')))
 
 
@@ -334,15 +334,15 @@ if __name__ == "__main__":
     
     # Declare agent
     agent = DQN_agent(config, DQN)
-    load = False
+    load = True
     if load:
         # load agent using pickle
         with open('./src/agents/agent.pkl', 'rb') as f:
             agent = pickle.load(f)
    
     # Train agent
-    max_episode_steps= 500
-    ep_length, disc_rewards, tot_rewards, V0 = agent.train(env, max_episode_steps)
-    with open('./src/agents/agent.pkl', 'wb') as f:
-      pickle.dump(agent, f)
+    #max_episode_steps= 500
+    #ep_length, disc_rewards, tot_rewards, V0 = agent.train(env, max_episode_steps)
+    #with open('./src/agents/agent.pkl', 'wb') as f:
+     # pickle.dump(agent, f)
      
